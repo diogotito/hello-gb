@@ -1,4 +1,5 @@
 ASMFLAGS = -Wall -Wextra
+LNKFLAGS_MINIMAL = --sym $*.sym
 LNKFLAGS = --dmg --tiny --wramx --sym $*.sym
 FIXFLAGS = -f lhg --non-japanese
 
