@@ -1,0 +1,22 @@
+ASMFLAGS = -Wall -Wextra
+LNKFLAGS = --dmg --tiny --wramx --sym $*.sym
+FIXFLAGS = -f lhg --non-japanese
+
+# for debugging symbols, add "-n hello.sym" to LNKFLAGS
+
+all: hello.gb tile.gb
+
+%.o: %.asm
+	rgbasm $(ASMFLAGS) -o $@ $<
+
+%.gb: %.o
+	rgblink $(LNKFLAGS) -o $@ $<
+	rgbfix $(FIXFLAGS) $@
+	@hexyl --color=never $@
+
+clean:
+	rm -vf *.o
+	rm -vf *.gb
+	rm -vf *.sym
+
+.PHONY: clean, all
