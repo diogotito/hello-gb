@@ -13,7 +13,7 @@ all: hello.gb tile.gb
 %.gb: %.o
 	rgblink $(LNKFLAGS) -o $@ $<
 	rgbfix $(FIXFLAGS) $@
-	@hexyl --color=never $@
+	@hexyl $@
 
 clean:
 	rm -vf *.o

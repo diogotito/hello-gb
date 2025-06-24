@@ -5,11 +5,10 @@ SECTION "Header", ROM0[$100]
 	nop
 	jp $150
 	ds $134 - @, 0
-	db "{title}"  
+	db "{title}"
 	ds $13f - @, 0
 	db "{gameid}"
 	ds $150 - @, 0
-
 WaitForVBlank:
 	ld A, [$FF44] ; LY
 	cp 144
@@ -24,65 +23,11 @@ ActuallyCopyTiles:
 	ld HL, $8000
 
 NowBreakHere:
-	ld A, [BC]  ; 0x156
-	ld [HL+], A
-	INC BC
-
+rept 15
 	ld A, [BC]
 	ld [HL+], A
 	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-	
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-	
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-	
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
-
-	ld A, [BC]
-	ld [HL+], A
-	INC BC
+endr
 
 	ld A, [BC]
 	ld [HL], A
