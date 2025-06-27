@@ -72,20 +72,20 @@ Done:
 
 
 DoTheScroll:
-	; Move window 5 pixels to the right
-	ldh A, [$FF42] :: inc A :: ldh [$FF42], A  ; SCY
-	ldh A, [$FF43] :: dec A :: ldh [$FF43], A  ; SCX
+	;ldh A, [$FF42] :: inc A :: ldh [$FF42], A  ; SCY
+	;ldh A, [$FF43] :: dec A :: ldh [$FF43], A  ; SCX
+	ld A, [wCurScroll]
+	sra A
+	ldh [$FF43], A
 	reti
 
 
 ScanlineMadness:
 	; HL = &myBGPs[wCurBGPIdx] = myBGPs + wCurBGPIdx
-	xor A
-	ld HL, wCurBGPIdx
-	ld D, A
-	ld E, [HL]
 	ld HL, myBPGs
-	add HL, DE
+	ld A, [wCurBGPIdx]
+	xor L
+	ld L, A
 
 	; BGP = *HL
 	ld A, [HL]
@@ -94,17 +94,30 @@ ScanlineMadness:
 	; LYC += 8
 	ld A, [wNextLYC]
 	add 8
+	cp 144
+	jr nc, .noMoreScanlines
 	ldh [$FF45], A
 	ld [wNextLYC], A
-	ld A, %01000000    :: ldh [$FF41], A  ; Select LYC for STAT interrupt
+	jr .togglewCurBGPIdx
 
+.noMoreScanlines
+	; rLYC = wNextLYC = (wCurScroll = (wCurScroll + 1) % 16)
+	ld A, [wCurScroll]
+	inc A
+	and 31
+	ld [wCurScroll], A
+	sra A
+	ld [wNextLYC], A
+	ldh [$FF45], A
+	xor A
+	ld [wCurBGPIdx], A
 
-	; wCurBGPIdx ^= 1
+.togglewCurBGPIdx
 	ld A, [wCurBGPIdx]
 	xor 1
 	ld [wCurBGPIdx], A
 
-	; return
+	ld A, %01000000    :: ldh [$FF41], A  ; Select LYC for STAT interrupt
 	reti
 
 
@@ -134,3 +147,4 @@ myBPGs: db %11_10_01_00, %11_01_10_00
 SECTION "Variables in WRAM", WRAM0
 wNextLYC: db
 wCurBGPIdx: db
+wCurScroll: db
