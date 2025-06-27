@@ -13,7 +13,7 @@ all: hello.gb tile.gb wave.gb actual-wave.gb
 %.gb: %.o
 	rgblink $(LNKFLAGS) -o $@ $<
 	rgbfix $(FIXFLAGS) $@
-	@hexdump $@
+	@hexdump -C $@
 
 clean:
 	rm -vf *.o

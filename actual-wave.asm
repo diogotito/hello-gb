@@ -11,7 +11,9 @@ SECTION "Header", ROM0[$100]
 	ds $150 - @, 0
 
 
-;DEF rLY = $FF00+$44
+DEF rSCY = $FF00+$42
+DEF rSCX = $FF00+$43
+DEF rLY  = $FF00+$44
 
 SECTION "Entry point", ROM0[$150]
 
@@ -54,7 +56,7 @@ SetupTilemap:
 
 SetupDisplayRegisters:
 	ld A, %11_10_01_00 :: ldh [$FF47], A  ; BGP
-	ld A, %01000000    :: ldh [$FF41], A  ; Select LYC for STAT interrupt
+	ld A, %00001000    :: ldh [$FF41], A  ; Select HBlank for STAT interrupt
 	ld A, %00000011    :: ldh [$FFFF], A  ; enable VBlank and STAT interrupts
 
 	; Turn LCD back on and enable interrupts
@@ -70,11 +72,14 @@ PUSHS "VBlank handler", ROM0[$40]
 	jp DoTheScroll
 POPS
 DoTheScroll:
-	;ldh A, [$FF42] :: inc A :: ldh [$FF42], A  ; SCY
-	;ldh A, [$FF43] :: dec A :: ldh [$FF43], A  ; SCX
+	;ldh A, [rSCY] :: inc A :: ldh [rSCY], A  ; SCY
+	;ldh A, [rSCX] :: dec A :: ldh [rSCX], A  ; SCX
 	ld A, [wCurScroll]
+	inc A
+	ld [wCurScroll], A
+	ldh [rSCX], A
 	sra A
-	ldh [$FF43], A
+	ldh [rSCY], A
 	reti
 
 
@@ -82,9 +87,44 @@ PUSHS "STAT handler", ROM0[$48]
 	jp ScanlineMadness
 POPS
 ScanlineMadness:
-	; TODO rethink this
+	; D = wCurScroll
+	ld A, [wCurScroll]
+	ld D, A
+	; BC = rLY
+	ld B, 0
+	ld A, [rLY]
+	ld C, A
+	; HL = &tScanlineSine[rLY]
+	ld HL, tScanlineSine
+	add HL, BC
+	; E = tScanlineSine[rLY] / 2^2
+	ld A, [HL]
+	REPT 2
+		sra A
+	ENDR
+	ld E, A
+	; Deform: rSCX = wCurScroll + tScanlineSine[rLY]
+	ld A, D
+	add A, E
+	ld [rSCX], A
+	sra A
+	ld [rSCY], A
+	; Re-enable STAT interrupt
+	ld A, %00000011 
+	ldh [$FFFF], A
 	reti
 
+
+SECTION "Some tables", ROM0[$1000]
+tScanlineSine:
+ ; Generate a table of 144 sine values
+ ; from sin(0.0 turns) to sin(1.0 turn) excluded,
+ ; with amplitude scaled from [-1.0, 1.0] to [0.0, 128.0].
+ DEF _freq = 2.0
+ FOR angle, 0.0, 1.0, 1.0 / 144
+     db MUL(SIN(MUL(_freq, angle)) + 1.0, 128.0 / 2) >> 16
+ ENDR
+ .end:
 
 
 SECTION "My background Tiles", ROM0[$500]
