@@ -22,12 +22,16 @@ SECTION "Header", ROM0[$100]
 ;DEF rLY = $FF00+$44
 
 SECTION "Entry point", ROM0[$150]
+
+EntryPoint:
+	ld A, 8 :: ld [wNextLYC], A
+	xor A   :: ld [wCurBGPIdx],  A
+
 WaitForVBlank:
 	ldh A, [$FF00+$44] ; LY
 	cp 144
 	jr nz, WaitForVBlank
-
-TurnOffLCD:
+	; Now it's safe to turn off the LCD
 	ld HL, $FF40
 	res 7, [HL]
 
@@ -43,29 +47,17 @@ CopyTiles:
 	jr nz, .loop
 
 SetupTilemap:
-	ld BC, $2020  ; B = 32 rows, C = 32 columns
 	ld HL, $9800  ; The start of the 1st tilemap
 	ld A, $50
-.loop_C:
+.loop:
 	xor 1         ; Toggle A between $50 and $51
 	ld [HL+], A   ; Wrote  $50 or $51 to the tile index pointed by HL and inc HL
-	; Alright
-	; Now starts the 32x32 looping logic
-	dec C
-	jr nz, .loop_C
-	; At every 32th iteration:
-	dec B
-	; Did we finish all rows?
-	jr z, .end
-	; Iterate through the next row
-	ld C, $20
-	xor 1  ; Toggle again at end of row for a checkered pattern instead of vertical stripes
-	jr .loop_C
-.end
+	bit 2, H      ; Becomes 1 when HL reaches $9C00
+	jr z, .loop
 
 SetupDisplayRegisters:
-	ld A, %11_10_01_00 :: ldh [$FF47], A
-	ld A, 64           :: ldh [$FF45], A
+	ld A, %11_10_01_00 :: ldh [$FF47], A  ; BGP
+	ld A, [wNextLYC]   :: ldh [$FF45], A  ; LYC
 	ld A, %01000000    :: ldh [$FF41], A  ; Select LYC for STAT interrupt
 	ld A, %00000011    :: ldh [$FFFF], A  ; enable VBlank and STAT interrupts
 
@@ -87,8 +79,32 @@ DoTheScroll:
 
 
 ScanlineMadness:
-	; ld A, %11_00_00_00
-	; ldh [$FF47], A
+	; HL = &myBGPs[wCurBGPIdx] = myBGPs + wCurBGPIdx
+	xor A
+	ld HL, wCurBGPIdx
+	ld D, A
+	ld E, [HL]
+	ld HL, myBPGs
+	add HL, DE
+
+	; BGP = *HL
+	ld A, [HL]
+	ldh [$FF47], A
+
+	; LYC += 8
+	ld A, [wNextLYC]
+	add 8
+	ldh [$FF45], A
+	ld [wNextLYC], A
+	ld A, %01000000    :: ldh [$FF41], A  ; Select LYC for STAT interrupt
+
+
+	; wCurBGPIdx ^= 1
+	ld A, [wCurBGPIdx]
+	xor 1
+	ld [wCurBGPIdx], A
+
+	; return
 	reti
 
 
@@ -109,3 +125,12 @@ MyBGTiles:
 	ENDL
 .end:
 ENDSECTION
+
+
+SECTION "Alternating palettes", ROM0[$600], ALIGN[1]
+myBPGs: db %11_10_01_00, %11_01_10_00
+
+
+SECTION "Variables in WRAM", WRAM0
+wNextLYC: db
+wCurBGPIdx: db
