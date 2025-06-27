@@ -107,7 +107,9 @@ ScanlineMadness:
 	ld A, D
 	add A, E
 	ld [rSCX], A
-	sra A
+	REPT 2
+		sra A
+	ENDR
 	ld [rSCY], A
 	; Re-enable STAT interrupt
 	ld A, %00000011 
@@ -132,13 +134,19 @@ MyBGTiles:
 	LOAD "My background tiles in VRAM", VRAM[$8500]
 		vMyBGTiles:
 		.Filled1:
-			REPT 8
-				dw `11111111
+			REPT 3
+				dw `10110111
+				dw `11011112
 			ENDR
+			dw `11111111
+			dw `12121212
 		.Filled2:
-			REPT 8
+			REPT 3
 				dw `22222222
+				dw `22222321
 			ENDR
+			dw `22222222
+			dw `21212121
 		.end:
 	ENDL
 .end:
