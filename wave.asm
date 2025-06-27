@@ -1,13 +1,5 @@
-; Interrupt handlers
-SECTION "VBlank handler", ROM0[$40]
-	jp DoTheScroll
-
-SECTION "STAT handler", ROM0[$48]
-	jp ScanlineMadness
-
-
 DEF title  EQUS "AZULEJOS2" ; max 11 chars
-DEF gameid EQUS "AZL2"     ; max  4 chars
+DEF gameid EQUS "AZL2"      ; max  4 chars
 
 SECTION "Header", ROM0[$100]
 	di
@@ -70,7 +62,9 @@ Done:
 	jp Done
 
 
-
+PUSHS "VBlank handler", ROM0[$40]
+	jp DoTheScroll
+POPS
 DoTheScroll:
 	;ldh A, [$FF42] :: inc A :: ldh [$FF42], A  ; SCY
 	;ldh A, [$FF43] :: dec A :: ldh [$FF43], A  ; SCX
@@ -80,6 +74,9 @@ DoTheScroll:
 	reti
 
 
+PUSHS "STAT handler", ROM0[$48]
+	jp ScanlineMadness
+POPS
 ScanlineMadness:
 	; HL = &myBGPs[wCurBGPIdx] = myBGPs + wCurBGPIdx
 	ld HL, myBPGs
@@ -141,7 +138,8 @@ ENDSECTION
 
 
 SECTION "Alternating palettes", ROM0[$600], ALIGN[1]
-myBPGs: db %11_10_01_00, %11_01_10_00
+myBPGs: db %11_10_01_00, \
+           %11_01_10_00
 
 
 SECTION "Variables in WRAM", WRAM0
