@@ -5,7 +5,7 @@ FIXFLAGS = -f lhg --non-japanese
 
 # for debugging symbols, add "-n hello.sym" to LNKFLAGS
 
-all: hello.gb tile.gb wave.gb
+all: hello.gb tile.gb wave.gb actual-wave.gb
 
 %.o: %.asm
 	rgbasm $(ASMFLAGS) -o $@ $<
@@ -13,7 +13,7 @@ all: hello.gb tile.gb wave.gb
 %.gb: %.o
 	rgblink $(LNKFLAGS) -o $@ $<
 	rgbfix $(FIXFLAGS) $@
-	@hexyl $@
+	@hexdump $@
 
 clean:
 	rm -vf *.o
