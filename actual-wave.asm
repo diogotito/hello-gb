@@ -65,44 +65,45 @@ SetupTilemap:
 	bit 2, H      ; Becomes 1 when HL reaches $9C00
 	jr z, .loop
 
-; Repeat bootrom logic of decompressing the logo from the cartridge header to
-; VRAM, so that it shows up in my GBA
-; Adapted from https://github.com/ISSOtm/gb-bootroms/blob/master/src/dmg.asm
-	ld DE, $0104  ; header logo
-	ld hl, $8010  ; logo tiles in VRAM
-.decompressLogo
-	ld a, [de]
-	call DecompressFirstNibble
-	call DecompressSecondNibble
-	inc de
-	ld a, e
-	cp $34
-	jr nz, .decompressLogo
-	jp SetupDisplayRegisters  ; Skip over to my code
-DecompressFirstNibble:
-	ld c, a
-DecompressSecondNibble:
-	ld b, 8 / 2 ; Set all 8 bits of a, "consuming" 4 bits of c
-.loop
-	push bc
-	rl c ; Extract MSB of c
-	rla ; Into LSB of a
-	pop bc
-	rl c ; Extract that same bit
-	rla ; So that bit is inserted twice in a (= horizontally doubled)
-	dec b
-	jr nz, .loop
-	ld [hli], a
-	inc hl ; Skip second plane
-	ld [hli], a ; Also double vertically
-	inc hl
-	ret
-
+IF !DEF(SkipCartridgeHeaderLogoCopy)
+	; Repeat bootrom logic of decompressing the logo from the cartridge header to
+	; VRAM, so that it shows up in my GBA
+	; Adapted from https://github.com/ISSOtm/gb-bootroms/blob/master/src/dmg.asm
+		ld DE, $0104  ; header logo
+		ld hl, $8010  ; logo tiles in VRAM
+	.decompressLogo
+		ld a, [de]
+		call DecompressFirstNibble
+		call DecompressSecondNibble
+		inc de
+		ld a, e
+		cp $34
+		jr nz, .decompressLogo
+		jp SetupDisplayRegisters  ; Skip over to my code
+	DecompressFirstNibble:
+		ld c, a
+	DecompressSecondNibble:
+		ld b, 8 / 2 ; Set all 8 bits of a, "consuming" 4 bits of c
+	.loop
+		push bc
+		rl c ; Extract MSB of c
+		rla ; Into LSB of a
+		pop bc
+		rl c ; Extract that same bit
+		rla ; So that bit is inserted twice in a (= horizontally doubled)
+		dec b
+		jr nz, .loop
+		ld [hli], a
+		inc hl ; Skip second plane
+		ld [hli], a ; Also double vertically
+		inc hl
+		ret
+ENDC
 
 ; now back to my code
 SetupDisplayRegisters:
 	ld A, %11_10_01_00 :: ldh [$FF47], A  ; BGP
-	ld A, %00_00_00_00 :: ldh [$FF48], A  ; OBP
+	ld A, %11_11_11_11 :: ldh [$FF48], A  ; OBP
 	ld A, %00001000    :: ldh [$FF41], A  ; Select HBlank for STAT interrupt
 	ld A, %00000011    :: ldh [$FFFF], A  ; enable VBlank and STAT interrupts
 	ld A, %10010011    :: ldh [$FF40], A  ; Turn LCD back on and enable OBJ display
@@ -193,15 +194,15 @@ MyOAMentries:
 			def curX += 8
 		endm
 		.Nintendont:
-			moveTo 32, 32
+			moveTo 40, 16 + (8*8)
 			for tile_index, $01, $0A
 				putOBJ tile_index
 			endr
-			moveTo 32, 40
+			moveTo 40, 16 + (8*8) + 8
 			for tile_index, $0D, $16
 				putOBJ tile_index
 			endr
-			moveTo 40, 48
+			moveTo 46, 16 + (8*10 + 1)
 			putOBJ $0A
 			putOBJ $0B
 			putOBJ $0C
@@ -211,7 +212,7 @@ MyOAMentries:
 			putOBJ $04
 			putOBJ $05
 			putOBJ $06
-			moveTo 40, 56
+			moveTo 46, 16 + (8*10 + 1) + 8
 			putOBJ $16
 			putOBJ $17
 			putOBJ $18
