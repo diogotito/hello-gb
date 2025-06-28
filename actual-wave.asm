@@ -38,13 +38,24 @@ CopyTiles:
     dec C
 	jr nz, .loop
 
+CopyOBJs:
+	ld C, MyOAMentries.end - MyOAMentries
+	ld HL, MyOAMentries
+	ld DE, inOAM
+.loop:
+	ld A, [HL+]
+	ld [DE], A
+	inc DE
+	dec C
+	jr nz, .loop
+
 SetupTilemap:
 	ld HL, $9800  ; The start of the 1st tilemap
 	ld A, $50
 	ld C, 32      ; Keep track of whether we are starting a new row
 .loop:
 	xor 1         ; Toggle A between $50 and $51
-:	ld [HL+], A   ; Write  $50 or $51 to the tile index pointed by HL and inc HL
+	ld [HL+], A   ; Write  $50 or $51 to the tile index pointed by HL and inc HL
 	; Check if we are at the end of a row
 	dec C
 	jr nz, .checkEndOfTilemap0
@@ -56,11 +67,10 @@ SetupTilemap:
 
 SetupDisplayRegisters:
 	ld A, %11_10_01_00 :: ldh [$FF47], A  ; BGP
+	ld A, %00_00_00_00 :: ldh [$FF48], A  ; OBP
 	ld A, %00001000    :: ldh [$FF41], A  ; Select HBlank for STAT interrupt
 	ld A, %00000011    :: ldh [$FFFF], A  ; enable VBlank and STAT interrupts
-
-	; Turn LCD back on and enable interrupts
-	ld HL, $FF40 :: set 7, [HL]
+    ld A, %10010011    :: ldh [$FF40], A  ; Turn LCD back on and enable OBJ display
 	ei
 
 Done:
@@ -72,14 +82,15 @@ PUSHS "VBlank handler", ROM0[$40]
 	jp DoTheScroll
 POPS
 DoTheScroll:
-	;ldh A, [rSCY] :: inc A :: ldh [rSCY], A  ; SCY
-	;ldh A, [rSCX] :: dec A :: ldh [rSCX], A  ; SCX
 	ld A, [wCurScroll]
 	inc A
 	ld [wCurScroll], A
 	ldh [rSCX], A
 	sra A
 	ldh [rSCY], A
+
+	; Nintendon't metasprite
+	
 	reti
 
 
@@ -129,18 +140,76 @@ tScanlineSine:
  .end:
 
 
+SECTION "Hardcoded OAM entries", ROM0[$800]
+MyOAMentries:
+	LOAD "My entries copied to OAM", OAM[$FE00]
+		inOAM:
+		; Byte 0 - Y Position + 16
+		; Byte 1 - X Position + 8 
+		; Byte 2 - Tile index (unsigned)
+		; Byte 3 - Attributes/Flags:
+		;            Priority (0 = normal) | Y flip | X flip | OBP0 or 1 | x | xxx
+		macro moveTo
+			def curX = \1
+			def curY = \2
+		endm
+		macro putOBJ
+			db curY, curX, \1, %00000000
+			def curX += 8
+		endm
+		.Nintendont:
+			moveTo 32, 32
+			for tile_index, $01, $0A
+				putOBJ tile_index
+			endr
+			moveTo 32, 40
+			for tile_index, $0D, $16
+				putOBJ tile_index
+			endr
+			moveTo 40, 48
+			putOBJ $0A
+			putOBJ $0B
+			putOBJ $0C
+			def curX -= 2
+			putOBJ $05
+			def curX += 2
+			putOBJ $04
+			putOBJ $05
+			putOBJ $06
+			moveTo 40, 56
+			putOBJ $16
+			putOBJ $17
+			putOBJ $18
+			def curX += 8
+			putOBJ $10
+			putOBJ $11
+			def curX += 2
+			def curY -= 2
+			db curY, curX, $19, %01110000
+		.endOf: ds $FEA0 - @, 0
+	ENDL
+.end:
+
 SECTION "My background Tiles", ROM0[$500]
 MyBGTiles:
 	LOAD "My background tiles in VRAM", VRAM[$8500]
 		vMyBGTiles:
 		.Filled1:
+			REPT 8
+				dw `11111111
+			ENDR
+		.Filled2:
+			REPT 8
+				dw `22222222
+			ENDR
+		.Funky1:
 			REPT 3
 				dw `10110111
 				dw `11011112
 			ENDR
 			dw `11111111
 			dw `12121212
-		.Filled2:
+		.Funky2:
 			REPT 3
 				dw `22222222
 				dw `22222321
@@ -155,3 +224,9 @@ ENDSECTION
 
 SECTION "Variables in WRAM", WRAM0
 wCurScroll: db
+
+SECTION "Variables in HRAM", HRAM
+metaspriteX: db
+metaspriteY: db
+metaspriteVX: db
+metaspriteVY: db
