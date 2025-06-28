@@ -16,9 +16,11 @@ DEF rSCX = $FF00+$43
 DEF rLY  = $FF00+$44
 
 SECTION "Entry point", ROM0[$150]
-
 EntryPoint:
-	; to fill
+	ld a, 40 :: ldh [hMetaspriteX], a
+	ld a, 80 :: ldh [hMetaspriteY], a
+	ld a, 1 :: ldh [hMetaspriteVX], a
+	ld a, 1 :: ldh [hMetaspriteVY], a
 WaitForVBlank:
 	ldh A, [$FF00+$44] ; LY
 	cp 144
@@ -125,9 +127,93 @@ DoTheScroll:
 	sra A
 	ldh [rSCY], A
 
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Nintendon't metasprite
-	
-	reti
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	ei
+	ld HL, inOAM.Nintendont
+	ld C, (inOAM.end - inOAM.Nintendont) / 4
+.loopOBJ
+	; HL = &curOBJ->y
+	ldh A, [hMetaspriteVY]
+	ld B, A
+	ld A, [HL]
+	add B
+	ld [HL+], A
+
+	; HL = &curOBJ->x
+	ldh A, [hMetaspriteVX]
+	ld B, A
+	ld A, [HL]
+	add B
+	ld [HL+], A
+
+	; Skip over tile index and attributes
+	inc HL
+	inc HL
+
+	; Loop to the next OBJ if we didn't reach the end
+	dec C
+	jr nz, .loopOBJ
+
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; Bouncing logic
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ 
+	macro obpSwap
+		ld B, A
+		ldh A, [$FF48]  ; OBP
+		cpl
+		ldh [$FF48], A
+		ld A, B
+	endm
+
+	di
+
+	; Y += VY
+	ldh A, [hMetaspriteVY]
+	ld B, A
+	ldh A, [hMetaspriteY]
+	add B
+	ldh [hMetaspriteY], A
+
+	; if (Y <= 16) VY = 1
+	cp 16 + 1
+	jr !c, :+
+	ld A, 1
+	ldh [hMetaspriteVY], A
+	obpSwap
+
+	; if (Y => 128) VY = -1
+:	cp 128 + 1
+	jr c, :+
+	ld A, -1
+	ldh [hMetaspriteVY], A
+	obpSwap
+
+	; X += VX
+:	ldh A, [hMetaspriteVX]
+	ld B, A
+	ldh A, [hMetaspriteX]
+	add B
+	ldh [hMetaspriteX], A
+
+	; if (X <= 8) VX = 1
+	cp 8 + 1
+	jr !c, :+
+	ld A, 1
+	ldh [hMetaspriteVX], A
+	obpSwap
+
+	; if (X => 102) VX = -1
+:	cp 102 + 1
+	jr c, :+
+	ld A, -1
+	ldh [hMetaspriteVX], A
+	obpSwap
+
+:	reti
 
 
 PUSHS "STAT handler", ROM0[$48]
@@ -222,7 +308,7 @@ MyOAMentries:
 			def curX += 2
 			def curY -= 2
 			db curY, curX, $19, %01110000
-		.endOf: ds $FEA0 - @, 0
+		.end: ds $FEA0 - @, 0
 	ENDL
 .end:
 
@@ -262,7 +348,7 @@ SECTION "Variables in WRAM", WRAM0
 wCurScroll: db
 
 SECTION "Variables in HRAM", HRAM
-metaspriteX: db
-metaspriteY: db
-metaspriteVX: db
-metaspriteVY: db
+hMetaspriteX: db
+hMetaspriteY: db
+hMetaspriteVX: db
+hMetaspriteVY: db
