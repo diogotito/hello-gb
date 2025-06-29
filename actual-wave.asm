@@ -161,14 +161,6 @@ DoTheScroll:
 	; Bouncing logic
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  
-	macro obpSwap
-		ld B, A
-		ldh A, [$FF48]  ; OBP
-		cpl
-		ldh [$FF48], A
-		ld A, B
-	endm
-
 	di
 
 	; Y += VY
@@ -183,14 +175,14 @@ DoTheScroll:
 	jr !c, :+
 	ld A, 1
 	ldh [hMetaspriteVY], A
-	obpSwap
+	call DidBounce
 
 	; if (Y => 128) VY = -1
 :	cp 128 + 1
 	jr c, :+
 	ld A, -1
 	ldh [hMetaspriteVY], A
-	obpSwap
+	call DidBounce
 
 	; X += VX
 :	ldh A, [hMetaspriteVX]
@@ -204,16 +196,41 @@ DoTheScroll:
 	jr !c, :+
 	ld A, 1
 	ldh [hMetaspriteVX], A
-	obpSwap
+	call DidBounce
 
 	; if (X => 102) VX = -1
 :	cp 102 + 1
 	jr c, :+
 	ld A, -1
 	ldh [hMetaspriteVX], A
-	obpSwap
+	call DidBounce
 
 :	reti
+
+DidBounce:
+	ld B, A
+
+	; Palette swap
+	ldh A, [$FF48]  ; OBP0
+	cpl
+	ldh [$FF48], A
+
+	; Noise sound
+	ld C, A
+	cpl
+	and %0000_0_111   ; Reuse some bits from OBP1 to setup NR43 clock divider
+	ldh [$FF22], A    ; NR43: Channel 4 frequency & randomness
+
+	ld A, C
+	and %1111_0_001   ; Envelope = decreasing,  pace <= 3
+	or  %0111_0_001   ; Initial vol. >= 7,      pace >= 1
+	ldh [$FF21], A    ; NR42: Channel 4 volume & envelope
+
+	ld A, %1_00_00000 ; Trigger channel 4
+	ldh [$FF23], A    ; NR44: Channel 4 control
+
+	ld A, B
+	ret
 
 
 PUSHS "STAT handler", ROM0[$48]
